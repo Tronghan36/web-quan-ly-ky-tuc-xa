@@ -1,8 +1,8 @@
-# 🏫 Hệ Thống Quản Lý Ký Túc Xá Sinh Viên
+# Hệ Thống Quản Lý Ký Túc Xá Sinh Viên
 
 Ứng dụng web toàn diện để quản lý ký túc xá, sinh viên, phòng, hóa đơn và các vi phạm.
 
-## 🚀 Tính Năng Chính
+## Tính Năng Chính
 
 - **Quản Lý Sinh Viên**: Thêm, sửa, xóa, tìm kiếm thông tin sinh viên
 - **Quản Lý Phòng**: Quản lý các phòng ký túc xá, sức chứa, trạng thái
@@ -12,7 +12,7 @@
 - **Dashboard**: Thống kê tổng hợp
 - **Xác Thực**: Đăng nhập/đăng xuất với JWT
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - React 18+
@@ -29,7 +29,7 @@
 - Joi (Validation)
 - CORS
 
-## 📋 Cấu Trúc Dự Án
+## Cấu Trúc Dự Án
 
 ```
 web-quan-ly-ky-tuc-xa/
@@ -53,7 +53,7 @@ web-quan-ly-ky-tuc-xa/
 └── README.md
 ```
 
-## 🏃 Hướng Dẫn Cài Đặt
+## Hướng Dẫn Cài Đặt
 
 ### Bước 1: Cài Đặt Backend
 ```bash
@@ -73,11 +73,11 @@ npm start
 Backend: http://localhost:5000
 Frontend: http://localhost:3000
 
-## 🔐 Tài Khoản Demo
+## Tài Khoản Demo
 
 - Email: `admin@example.com`
 - Password: `123456`
 
-## 📝 License
+## License
 
 MIT License
