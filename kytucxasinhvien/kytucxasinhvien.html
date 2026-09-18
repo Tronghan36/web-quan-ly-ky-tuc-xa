@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ thống Quản lý KTX (Admin & Student Tích hợp)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; overflow-x: hidden; }
+
+    #auth-page {
+      height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a426e 0%, #0d6efd 100%);
+    }
+    .auth-box {
+      background: white; padding: 40px; border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px;
+    }
+    #register-form { display: none; }
+
+    #main-app { display: none; }
+    .sidebar { background-color: #0a426e; min-height: 100vh; width: 270px; transition: all 0.3s; display: flex; flex-direction: column; }
+    .sidebar a {
+      color: #c2c7d0; text-decoration: none; padding: 12px 20px;
+      display: block; border-radius: 5px; margin-bottom: 5px; cursor: pointer;
+    }
+    .sidebar a:hover, .sidebar a.active { background-color: #0d6efd; color: #fff; }
+    .content-section { display: none; }
+    .content-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+
+    .processing-pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .stat-card { border-radius: 10px; border: none; transition: transform 0.2s; }
+    .stat-card:hover { transform: translateY(-5px); }
+  </style>
+</head>
+<body>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+  <div id="liveToast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toast-message"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="studentDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-address-card me-2"></i>Hồ sơ chi tiết Sinh viên</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="student-details-content">
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-qrcode me-2"></i>Thanh toán QR Tự động</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" id="btn-close-modal"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <div id="payment-step-1">
+          <p class="text-secondary mb-3">Mở ứng dụng ngân hàng và quét mã QR. Hệ thống sẽ tự động duyệt.</p>
+          <div class="p-3 bg-white border rounded-3 shadow-sm d-inline-block mb-3">
+            <img src="https://scontent.fhan2-4.fna.fbcdn.net/v/t1.15752-9/753169402_1605048007965087_7912292454746478927_n.jpg?stp=dst-jpg_tt6&cstp=mx846x887&ctp=s846x887&_nc_cat=110&ccb=1-7&_nc_sid=9f807c&_nc_eui2=AeEnixAZZJJEr5lc7y1EKq9nkTlbC5xkwo6ROVsLnGTCjtFtII6zN5yOZ7T8xmVqQc_a9ciy7MDyCpSX5n3Q_1gp&_nc_ohc=soZFQht_yV4Q7kNvwGnRbKk&_nc_oc=AdqUMXvHh-whz9VKXglUf3yZZBaEsjKF3xdt13EK-rqIRk6_QsAUygJRALMtFU107zY&_nc_zt=23&_nc_ht=scontent.fhan2-4.fna&_nc_ss=7b2a8&oh=03_Q7cD5wFe5xBxniYmI3Iw9wwBDsy4wJPfPJKm2o3JQVsip-1V0Q&oe=6A878AFF" alt="QR Code" class="img-fluid rounded" style="max-width: 200px;">
+          </div>
+          <h4 class="text-primary fw-bold mb-3" id="modal-invoice-amount">0 đ</h4>
+          <div class="alert alert-info py-2 d-flex align-items-center justify-content-center processing-pulse" id="waiting-status">
+            <i class="fa-solid fa-spinner fa-spin me-2"></i> Đang chờ nhận thanh toán...
+          </div>
+        </div>
+        <div id="payment-step-2" style="display: none;">
+          <div class="text-success mb-3" style="font-size: 4rem;"><i class="fa-regular fa-circle-check"></i></div>
+          <h4 class="fw-bold text-success mb-2">Thanh toán thành công!</h4>
+          <p class="text-muted">Hệ thống đã xác nhận giao dịch và gạch nợ hóa đơn.</p>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-center bg-light" id="payment-footer">
+        <button type="button" class="btn btn-primary fw-bold w-100" id="btn-simulate-pay" onclick="simulateBankWebhook()">
+          <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Xác nhận đã chuyển khoản
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="auth-page">
+  <div class="auth-box text-center">
+    <div class="mb-4"><img src="https://tethys-engineering.pnnl.gov/sites/default/files/taxonomy-images/Logo_PHENIKAA-UNI.jpg" alt="Logo Phenikaa" style="max-height: 80px;"></div>
+    <h4 class="fw-bold mb-4" style="color: #0a426e;">HỆ THỐNG KÝ TÚC XÁ</h4>
+
+    <div id="login-form">
+      <h6 class="mb-3 text-secondary">Đăng nhập hệ thống</h6>
+      <div class="alert alert-info py-2" style="font-size: 13px; text-align: left;">
+        <b>Gợi ý Tài khoản Mẫu:</b><br>
+        - Admin: admin@phenikaa-uni.edu.vn / Admin@123<br>
+        - SV: sv@st.phenikaa-uni.edu.vn / Sinhvien@123
+      </div>
+
+      <input type="email" id="login-email" class="form-control mb-3 p-2" placeholder="Email đăng nhập" onkeypress="handleLoginEnter(event)">
+
+      <div class="input-group mb-3">
+        <input type="password" id="login-pass" class="form-control p-2" placeholder="Mật khẩu" onkeypress="handleLoginEnter(event)">
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('login-pass', 'login-eye-icon')">
+          <i class="fa-solid fa-eye" id="login-eye-icon"></i>
+        </button>
+      </div>
+
+      <button class="btn btn-primary w-100 py-2 mb-3 fw-bold" onclick="doLogin()">ĐĂNG NHẬP</button>
+      <p class="text-muted mb-0">Sinh viên mới? <a href="#" onclick="toggleAuth('register')" class="text-decoration-none fw-bold">Đăng ký ngay</a></p>
+    </div>
+
+    <div id="register-form">
+      <h6 class="mb-3 text-secondary">Đăng ký tài khoản Sinh Viên</h6>
+      <input type="text" id="reg-name" class="form-control mb-3 p-2" placeholder="Họ và tên">
+      <input type="email" id="reg-email" class="form-control mb-3 p-2" placeholder="Mail SV (@st.phenikaa-uni.edu.vn)">
+
+      <div class="input-group mb-2">
+        <input type="password" id="reg-pass" class="form-control p-2" placeholder="Tạo Mật khẩu">
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('reg-pass', 'reg-eye-icon')">
+          <i class="fa-solid fa-eye" id="reg-eye-icon"></i>
+        </button>
+      </div>
+
+      <small class="text-danger d-block text-start mb-3" style="font-size: 11px;">
+        * Bắt buộc: Tối thiểu 8 ký tự, bao gồm cả chữ cái, số và ký tự đặc biệt.
+      </small>
+
+      <button class="btn btn-success w-100 py-2 mb-3 fw-bold" onclick="doRegister()">TẠO TÀI KHOẢN</button>
+      <p class="text-muted mb-0">Đã có tài khoản? <a href="#" onclick="toggleAuth('login')" class="text-decoration-none fw-bold text-success">Đăng nhập</a></p>
+    </div>
+  </div>
+</div>
+
+<div id="main-app" class="d-flex">
+
+  <div class="sidebar text-white p-3 overflow-auto">
+    <div class="text-center py-3 border-bottom border-secondary mb-3">
+      <img src="https://tethys-engineering.pnnl.gov/sites/default/files/taxonomy-images/Logo_PHENIKAA-UNI.jpg" alt="Logo" style="max-height: 50px; background: white; padding: 5px; border-radius: 5px; margin-bottom: 10px;">
+      <h6 class="fw-bold mb-0 text-uppercase mt-2">KTX SINH VIÊN</h6>
+    </div>
+
+    <div id="student-menu" style="display: none;">
+      <a id="menu-dashboard" onclick="switchPage('dashboard', this)" class="menu-item"><i class="fa-solid fa-house me-2"></i> Trang chủ</a>
+      <a id="menu-profile" onclick="switchPage('profile', this)" class="menu-item"><i class="fa-solid fa-address-card me-2"></i> Hồ sơ cá nhân</a>
+      <a id="menu-room-register" onclick="switchPage('room-register', this)" class="menu-item"><i class="fa-solid fa-bed me-2"></i> Đăng ký phòng</a>
+      <a id="menu-services" onclick="switchPage('services', this)" class="menu-item"><i class="fa-solid fa-bell-concierge me-2"></i> Đăng ký dịch vụ</a>
+      <a id="menu-invoice" onclick="switchPage('invoice', this)" class="menu-item"><i class="fa-solid fa-file-invoice-dollar me-2"></i> Hóa đơn</a>
+      <a id="menu-incident" onclick="switchPage('incident', this)" class="menu-item"><i class="fa-solid fa-screwdriver-wrench me-2"></i> Báo cáo sự cố</a>
+    </div>
+
+    <div id="admin-menu" style="display: none;">
+      <a id="menu-admin-students" onclick="switchPage('admin-students', this)" class="menu-item"><i class="fa-solid fa-users-gear me-2"></i> Quản lý Sinh viên</a>
+      <a onclick="switchPage('admin-requests', this)" class="menu-item"><i class="fa-solid fa-clipboard-check me-2"></i> Duyệt Yêu Cầu</a>
+      <a onclick="switchPage('admin-notifs', this)" class="menu-item"><i class="fa-solid fa-bullhorn me-2"></i> Gửi Thông Báo</a>
+      <a onclick="switchPage('admin-stats', this)" class="menu-item"><i class="fa-solid fa-chart-pie me-2"></i> Thống kê Báo cáo</a>
+    </div>
+
+    <a onclick="doLogout()" class="text-danger mt-auto mb-2 fw-bold text-center" style="cursor: pointer; background: rgba(220, 53, 69, 0.1); border-radius: 5px;">
+      <i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất
+    </a>
+  </div>
+
+  <div class="flex-grow-1 overflow-auto" style="height: 100vh;">
+    <nav class="navbar bg-white px-4 py-3 shadow-sm mb-4 sticky-top d-flex justify-content-between">
+      <h5 class="mb-0 fw-bold text-dark" id="page-title">Loading...</h5>
+      <div class="d-flex align-items-center">
+        <span class="badge bg-primary me-3" id="role-badge">Role</span>
+        <span class="fw-semibold text-dark" id="user-greeting">Xin chào!</span>
+      </div>
+    </nav>
+
+    <div class="container-fluid px-4 pb-4">
+      <div id="dashboard" class="content-section">
+        <div class="card shadow-sm p-4 mb-4 border-top border-info border-4" style="background-color: #f8fbff;">
+          <h5 class="fw-bold mb-3"><i class="fa-solid fa-bullhorn me-2 text-info"></i>Bản tin & Thông báo từ BQL</h5>
+          <div id="dashboard-notifications"></div>
+        </div>
+
+        <div class="row mt-3">
+          <div class="col-md-6 mb-4">
+            <div class="card p-3 border-start border-primary border-4 shadow-sm h-100">
+              <h6 class="text-muted">PHÒNG HIỆN TẠI</h6>
+              <h4 class="fw-bold text-primary" id="dashboard-room-status">Chưa có phòng</h4>
+            </div>
+          </div>
+          <div class="col-md-6 mb-4">
+            <div class="card p-3 border-start border-danger border-4 shadow-sm h-100">
+              <h6 class="text-muted">TỔNG HÓA ĐƠN CẦN ĐÓNG</h6>
+              <h4 class="fw-bold text-danger mb-0" id="dashboard-invoice-total">0 đ</h4>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm p-4 mt-2">
+          <h5 class="fw-bold mb-3"><i class="fa-solid fa-list-check me-2"></i>Trạng thái xử lý yêu cầu/sự cố</h5>
+          <table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>Mã YC</th><th>Loại yêu cầu</th><th>Nội dung</th><th>Trạng thái</th></tr></thead>
+            <tbody id="request-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="profile" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-4"><i class="fa-solid fa-address-card me-2"></i>Thông tin sinh viên</h5>
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Họ và Tên</label><input type="text" id="prof-name" class="form-control bg-light" disabled></div>
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Email Sinh Viên</label><input type="email" id="prof-email" class="form-control bg-light" disabled></div>
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Mã Sinh Viên (MSSV)</label><input type="text" id="prof-mssv" class="form-control" placeholder="Ví dụ: 20010xxx"></div>
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Số điện thoại</label><input type="text" id="prof-phone" class="form-control" placeholder="Nhập SĐT liên hệ"></div>
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Ngày sinh</label><input type="date" id="prof-dob" class="form-control"></div>
+            <div class="col-md-6 mb-3"><label class="form-label fw-semibold">Giới tính</label><select id="prof-gender" class="form-select"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+          </div>
+          <button class="btn btn-primary mt-3" onclick="saveProfile()"><i class="fa-solid fa-floppy-disk me-2"></i> Lưu Thông Tin</button>
+        </div>
+      </div>
+
+      <div id="room-register" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-4">Đăng ký phòng KTX</h5>
+          <div class="alert alert-info">
+            Hệ thống sẽ tự động quét và phân bổ bạn vào phòng/giường trống phù hợp với lựa chọn của bạn.
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">Chọn Tòa nhà</label>
+              <select class="form-select" id="building-select">
+                <option value="">-- Chọn tòa --</option>
+                <option value="Tòa A">Tòa A (Nam)</option><option value="Tòa B">Tòa B (Nữ)</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">Loại phòng</label>
+              <select class="form-select" id="room-type-select">
+                <option value="">-- Chọn loại phòng --</option>
+                <option value="Phòng 4 (800k)">Phòng 4 người (Điều hòa) - 800,000 đ</option>
+                <option value="Phòng 6 (400k)">Phòng 6 người (Quạt) - 400,000 đ</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-2" onclick="submitRoomRegistration()"><i class="fa-solid fa-paper-plane me-2"></i> Gửi Yêu Cầu Đăng Ký</button>
+        </div>
+      </div>
+
+      <div id="services" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-4"><i class="fa-solid fa-bell-concierge me-2"></i>Đăng ký dịch vụ gia tăng</h5>
+          <div class="alert alert-info">Phí dịch vụ sẽ được cộng trực tiếp vào Hóa đơn của bạn sau khi đăng ký thành công.</div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Chọn loại dịch vụ</label>
+            <select class="form-select" id="service-select">
+              <option value="Gửi xe máy|50000">Gửi xe máy (50,000 đ / tháng)</option>
+              <option value="Giặt là KTX|150000">Dịch vụ giặt là (150,000 đ / tháng)</option>
+            </select>
+          </div>
+          <button class="btn btn-success mt-2 fw-bold" onclick="submitService()"><i class="fa-solid fa-cart-plus me-2"></i> Đăng Ký Dịch Vụ Này</button>
+        </div>
+      </div>
+
+      <div id="invoice" class="content-section">
+        <div class="card shadow-sm p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Danh sách Hóa đơn</h5>
+            <div>
+              <button class="btn btn-sm btn-danger fw-bold me-2" onclick="openPaymentModal('all')"><i class="fa-solid fa-qrcode me-1"></i> Thanh toán tất cả</button>
+              <button class="btn btn-sm btn-outline-info fw-bold" onclick="generateUtilityBills()"><i class="fa-solid fa-bolt text-warning"></i> Chốt phí sinh hoạt</button>
+            </div>
+          </div>
+          <table class="table table-bordered align-middle">
+            <thead class="table-light"><tr><th>Mã HĐ</th><th>Nội dung</th><th>Số tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody id="invoice-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="incident" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-4">Gửi báo cáo sự cố kỹ thuật</h5>
+          <input type="text" id="incident-title" class="form-control mb-3" placeholder="Tên sự cố... (VD: Hỏng quạt trần, Cháy bóng đèn)">
+          <textarea class="form-control mb-3" id="incident-desc" rows="4" placeholder="Mô tả chi tiết tình trạng..."></textarea>
+          <button class="btn btn-warning fw-bold" onclick="submitIncident()"><i class="fa-solid fa-triangle-exclamation me-2"></i> Gửi Báo Cáo</button>
+        </div>
+      </div>
+
+      <div id="admin-students" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-users-gear me-2"></i>Quản lý Dữ liệu Sinh viên</h5>
+          <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark"><tr><th>Họ và Tên</th><th>MSSV / Email</th><th>Phòng KTX</th><th>Trạng thái Nợ</th><th class="text-center">Thao tác</th></tr></thead>
+            <tbody id="admin-student-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="admin-requests" class="content-section">
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-clipboard-check me-2"></i>Duyệt & Xử lý Yêu cầu</h5>
+          <table class="table table-bordered align-middle">
+            <thead class="table-light"><tr><th>Sinh Viên gửi</th><th>Loại Yêu Cầu</th><th>Nội dung</th><th>Thao tác</th></tr></thead>
+            <tbody id="admin-request-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="admin-notifs" class="content-section">
+        <div class="card shadow-sm p-4 mb-4">
+          <h5 class="fw-bold mb-4 text-info"><i class="fa-solid fa-pen-to-square me-2"></i>Soạn Thông Báo Mới</h5>
+          <input type="text" id="notif-title" class="form-control mb-3" placeholder="Nhập tiêu đề thông báo...">
+          <textarea id="notif-content" class="form-control mb-3" rows="3" placeholder="Nhập nội dung chi tiết..."></textarea>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Phân loại mức độ</label>
+            <select id="notif-type" class="form-select">
+              <option value="info|fa-circle-info">Thông tin chung (Xanh dương)</option>
+              <option value="danger|fa-triangle-exclamation">Cảnh báo / Nhắc nợ (Đỏ)</option>
+              <option value="warning|fa-bell">Chú ý (Vàng)</option>
+              <option value="success|fa-check">Tin tức tích cực (Xanh lá)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary fw-bold" onclick="sendNotification()"><i class="fa-solid fa-paper-plane me-2"></i> Phát Thông Báo</button>
+        </div>
+
+        <div class="card shadow-sm p-4">
+          <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left me-2"></i>Lịch sử thông báo đã gửi</h5>
+          <div id="admin-notif-list"></div>
+        </div>
+      </div>
+
+      <div id="admin-stats" class="content-section">
+        <h4 class="fw-bold mb-4">Báo cáo Thống kê KTX</h4>
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="card stat-card bg-primary text-white p-4 shadow">
+              <h6 class="text-uppercase mb-2 opacity-75">Sinh Viên Nội Trú</h6><h2 class="fw-bold mb-0" id="stat-total-sv">0</h2>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card stat-card bg-success text-white p-4 shadow">
+              <h6 class="text-uppercase mb-2 opacity-75">Doanh Thu Thu Được</h6><h2 class="fw-bold mb-0" id="stat-revenue">0 đ</h2>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card stat-card bg-danger text-white p-4 shadow">
+              <h6 class="text-uppercase mb-2 opacity-75">Tiền Đang Nợ</h6><h2 class="fw-bold mb-0" id="stat-debt">0 đ</h2>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function loadDatabase() {
+    let stored = localStorage.getItem('ktx_DB_V7');
+    if (stored) return JSON.parse(stored);
+    return [
+      { name: "Ban Quản Lý KTX", email: "admin@phenikaa-uni.edu.vn", pass: "Admin@123", role: "admin", invoices: [], requests: [] },
+      {
+        name: "Sinh Viên Mẫu", email: "sv@st.phenikaa-uni.edu.vn", pass: "Sinhvien@123", role: "student",
+        room: null, studentId: "20010001", phone: "0987654321", dob: "2003-01-01", gender: "Nam", invoices: [], requests: []
+      }
+    ];
+  }
+
+  function loadNotifications() {
+    let stored = localStorage.getItem('ktx_Notif_V2');
+    if (stored) return JSON.parse(stored);
+    return [
+      { title: "Lịch cắt nước sửa chữa", content: "Vào lúc 08h00 - 11h00 Chủ nhật tuần này, KTX sẽ tạm ngừng cấp nước tòa A để bảo trì.", type: "info", icon: "fa-droplet", time: new Date().toLocaleString() },
+      { title: "Nhắc nhở hoàn thành phí KTX", content: "Vui lòng kiểm tra mục Hóa đơn để hoàn tất thanh toán trước ngày 15 hàng tháng.", type: "danger", icon: "fa-money-bill-wave", time: new Date().toLocaleString() }
+    ];
+  }
+
+  let usersDatabase = loadDatabase();
+  let notificationsDB = loadNotifications();
+  let currentUser = null;
+  let activeInvoiceIndex = -1;
+
+  const modalPayment = new bootstrap.Modal(document.getElementById('paymentModal'));
+  let studentModalInstance = null;
+
+  function saveDatabase() { localStorage.setItem('ktx_DB_V7', JSON.stringify(usersDatabase)); }
+  function saveNotifications() { localStorage.setItem('ktx_Notif_V2', JSON.stringify(notificationsDB)); }
+
+  function showToast(msg, type) {
+    const el = document.getElementById('liveToast');
+    el.className = `toast align-items-center text-white border-0 bg-${type}`;
+    document.getElementById('toast-message').innerHTML = msg;
+    new bootstrap.Toast(el, { delay: 2500 }).show();
+  }
+
+  function toggleAuth(mode) {
+    document.getElementById('login-form').style.display = (mode === 'login') ? 'block' : 'none';
+    document.getElementById('register-form').style.display = (mode === 'register') ? 'block' : 'none';
+  }
+
+  function handleLoginEnter(event) {
+    if (event.key === "Enter") { event.preventDefault(); doLogin(); }
+  }
+
+  function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input.type === "password") {
+      input.type = "text";
+      icon.classList.remove("fa-eye");
+      icon.classList.add("fa-eye-slash");
+    } else {
+      input.type = "password";
+      icon.classList.remove("fa-eye-slash");
+      icon.classList.add("fa-eye");
+    }
+  }
+
+  function doRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pass = document.getElementById('reg-pass').value;
+
+    if (!name || !email || !pass) return showToast('Vui lòng điền đầy đủ thông tin!', 'danger');
+
+    const passRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passRegex.test(pass)) {
+      return showToast('Mật khẩu phải từ 8 ký tự, gồm cả CHỮ, SỐ và KÝ TỰ ĐẶC BIỆT!', 'danger');
+    }
+
+    const isExist = usersDatabase.find(u => u.email === email);
+    if (isExist) return showToast('Email này đã được đăng ký trước đó!', 'danger');
+
+    usersDatabase.push({ name: name, email: email, pass: pass, role: "student", room: null, studentId: "", phone: "", dob: "", gender: "Nam", invoices: [], requests: [] });
+    saveDatabase();
+
+    document.getElementById('reg-name').value = '';
+    document.getElementById('reg-email').value = '';
+    document.getElementById('reg-pass').value = '';
+
+    showToast('Đăng ký tài khoản thành công! Vui lòng đăng nhập.', 'success');
+    toggleAuth('login');
+  }
+
+  function processLoginSuccess(user) {
+    currentUser = user;
+    sessionStorage.setItem('ktx_active_user', currentUser.email);
+
+    document.getElementById('auth-page').style.display = 'none';
+    document.getElementById('main-app').style.display = 'flex';
+    document.getElementById('user-greeting').innerHTML = `<i class="fa-solid fa-user-graduate me-2"></i>` + currentUser.name;
+
+    if(currentUser.role === 'admin') {
+      document.getElementById('role-badge').innerText = "Admin BQL";
+      document.getElementById('role-badge').className = "badge bg-warning text-dark me-3";
+      document.getElementById('student-menu').style.display = 'none';
+      document.getElementById('admin-menu').style.display = 'block';
+      switchPage('admin-students', document.getElementById('menu-admin-students'));
+      refreshAdminData();
+    } else {
+      document.getElementById('role-badge').innerText = "Sinh viên";
+      document.getElementById('role-badge').className = "badge bg-primary me-3";
+      document.getElementById('admin-menu').style.display = 'none';
+      document.getElementById('student-menu').style.display = 'block';
+      switchPage('dashboard', document.getElementById('menu-dashboard'));
+      refreshStudentData();
+    }
+  }
+
+  function doLogin() {
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-pass').value;
+    const user = usersDatabase.find(u => u.email === email && u.pass === pass);
+
+    if(user) {
+      processLoginSuccess(user);
+      showToast(`Đăng nhập thành công!`, 'success');
+    } else {
+      showToast('Sai Email hoặc Mật khẩu!', 'danger');
+    }
+  }
+
+  function doLogout() {
+    currentUser = null;
+    sessionStorage.removeItem('ktx_active_user');
+    document.getElementById('login-pass').value = '';
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('auth-page').style.display = 'flex';
+  }
+
+  function switchPage(pageId, menuItem) {
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    menuItem.classList.add('active');
+    document.getElementById('page-title').innerText = menuItem.innerText;
+  }
+
+  function checkSession() {
+    const activeEmail = sessionStorage.getItem('ktx_active_user');
+    if (activeEmail) {
+      const user = usersDatabase.find(u => u.email === activeEmail);
+      if (user) {
+        processLoginSuccess(user);
+      }
+    }
+  }
+  checkSession();
+
+  function renderNotifications(containerId, isAdmin) {
+    const container = document.getElementById(containerId);
+    if(notificationsDB.length === 0) {
+      container.innerHTML = '<p class="text-muted mb-0">Chưa có thông báo nào.</p>';
+      return;
+    }
+    container.innerHTML = notificationsDB.map((n, idx) => {
+      let deleteBtn = isAdmin ? `<button class="btn btn-sm btn-outline-danger float-end" onclick="deleteNotification(${idx})"><i class="fa-solid fa-trash"></i></button>` : '';
+      return `<div class="alert alert-${n.type} shadow-sm border-0 mb-3">${deleteBtn}
+                <h6 class="alert-heading fw-bold"><i class="fa-solid ${n.icon} me-2"></i>${n.title}</h6>
+                <p class="mb-1 text-dark">${n.content}</p>
+                <small class="text-muted" style="font-size: 11px;"><i class="fa-regular fa-clock me-1"></i>${n.time}</small>
+            </div>`;
+    }).join('');
+  }
+
+  function refreshStudentData() {
+    renderNotifications('dashboard-notifications', false);
+
+    document.getElementById('prof-name').value = currentUser.name;
+    document.getElementById('prof-email').value = currentUser.email;
+    document.getElementById('prof-mssv').value = currentUser.studentId || "";
+    document.getElementById('prof-phone').value = currentUser.phone || "";
+    document.getElementById('prof-dob').value = currentUser.dob || "";
+    document.getElementById('prof-gender').value = currentUser.gender || "Nam";
+
+    document.getElementById('dashboard-room-status').innerText = currentUser.room ? currentUser.room : "Chưa có phòng";
+
+    let total = 0;
+    document.getElementById('invoice-list').innerHTML = currentUser.invoices.map((inv, i) => {
+      if(inv.status === 0) total += inv.amount;
+      let badge = inv.status === 0 ? '<span class="badge bg-danger">Chưa nộp</span>' : '<span class="badge bg-success">Đã nộp</span>';
+      let btn = inv.status === 0 ? `<button class="btn btn-sm btn-primary fw-bold" onclick="openPaymentModal(${i})"><i class="fa-solid fa-qrcode me-1"></i> QR Pay</button>` : '';
+      return `<tr><td>${inv.id}</td><td>${inv.title}</td><td class="text-danger fw-bold">${inv.amount.toLocaleString()} đ</td><td>${badge}</td><td>${btn}</td></tr>`;
+    }).join('');
+
+    document.getElementById('dashboard-invoice-total').innerText = total.toLocaleString('vi-VN') + " đ";
+
+    document.getElementById('request-list').innerHTML = currentUser.requests.map(r => {
+      let st = r.status === 0 ? '<span class="badge bg-warning text-dark">Đang chờ xử lý</span>' : '<span class="badge bg-success">Hoàn tất</span>';
+      return `<tr><td>${r.id}</td><td><b>${r.type}</b></td><td>${r.content}</td><td>${st}</td></tr>`;
+    }).join('');
+  }
+
+  function saveProfile() {
+    currentUser.studentId = document.getElementById('prof-mssv').value;
+    currentUser.phone = document.getElementById('prof-phone').value;
+    currentUser.dob = document.getElementById('prof-dob').value;
+    currentUser.gender = document.getElementById('prof-gender').value;
+    saveDatabase(); showToast('Cập nhật hồ sơ thành công!', 'success');
+  }
+
+  function submitRoomRegistration() {
+    if(currentUser.room) return showToast('Bạn đã có phòng rồi, không thể đăng ký thêm!', 'danger');
+
+    const b = document.getElementById('building-select').value;
+    const r = document.getElementById('room-type-select').value;
+    if(!b || !r) return showToast('Vui lòng chọn tòa và loại phòng!', 'danger');
+
+    let capacity = r.includes('Phòng 4') ? 4 : 6;
+    let roomBaseType = r.includes('Phòng 4') ? "Phòng 4" : "Phòng 6";
+
+    let studentsInSameType = usersDatabase.filter(u => u.room && u.room.startsWith(b) && u.room.includes(roomBaseType));
+
+    let roomOccupancy = {};
+    let maxRoomNum = 100;
+
+    studentsInSameType.forEach(u => {
+      let match = u.room.match(/P\.(\d+) - Giường (\d+)/);
+      if(match) {
+        let rNum = parseInt(match[1]);
+        let bedNum = parseInt(match[2]);
+        if(rNum > maxRoomNum) maxRoomNum = rNum;
+
+        if(!roomOccupancy[rNum]) roomOccupancy[rNum] = [];
+        roomOccupancy[rNum].push(bedNum);
+      }
+    });
+
+    let assignedRoom = null;
+    let assignedBed = null;
+
+    for(let rNum in roomOccupancy) {
+      if(roomOccupancy[rNum].length < capacity) {
+        assignedRoom = rNum;
+        for(let i = 1; i <= capacity; i++) {
+          if(!roomOccupancy[rNum].includes(i)) {
+            assignedBed = i;
+            break;
+          }
+        }
+        break;
+      }
+    }
+
+    if(!assignedRoom) {
+      assignedRoom = maxRoomNum + 1;
+      assignedBed = 1;
+    }
+
+    currentUser.room = `${b} - P.${assignedRoom} - Giường ${assignedBed}`;
+
+    const price = r.includes('800k') ? 800000 : 400000;
+
+    currentUser.invoices.unshift({ id: 'HD-'+Date.now(), title: `Tiền KTX (${currentUser.room})`, amount: price, status: 0 });
+    saveDatabase();
+
+    showToast(`Tuyệt vời! Bạn đã được hệ thống xếp tự động vào ${currentUser.room}`, 'success');
+    refreshStudentData();
+
+    switchPage('dashboard', document.getElementById('menu-dashboard'));
+  }
+
+  function submitService() {
+    if (!currentUser.room) return showToast('Bạn phải có phòng KTX trước khi đăng ký dịch vụ!', 'danger');
+    const sel = document.getElementById('service-select').value.split('|');
+    currentUser.requests.unshift({ id: 'DV-' + Date.now(), type: 'Đăng ký Dịch vụ', content: `Gói: ${sel[0]}`, status: 1 });
+    currentUser.invoices.unshift({ id: 'HD-' + Date.now(), title: `Phí DV: ${sel[0]}`, amount: parseInt(sel[1]), status: 0 });
+    saveDatabase(); showToast('Đã đăng ký và tạo hóa đơn dịch vụ!', 'success'); refreshStudentData();
+  }
+
+  function generateUtilityBills() {
+    if(!currentUser.room) return showToast('Bạn chưa có phòng, không phát sinh điện nước!', 'danger');
+
+    // Cập nhật tính năng random số điện (từ 50 đến 300) và nước (từ 2 đến 15 khối)
+    let soDien = Math.floor(Math.random() * (300 - 50 + 1)) + 50;
+    let soNuoc = Math.floor(Math.random() * (15 - 2 + 1)) + 2;
+
+    // Nhân với đơn giá
+    let tienDien = soDien * 2800;
+    let tienNuoc = soNuoc * 16000;
+
+    let t = Date.now();
+    currentUser.invoices.unshift({ id: 'DIEN-'+t, title: `Tiền Điện sinh hoạt (${soDien} số)`, amount: tienDien, status: 0 });
+    currentUser.invoices.unshift({ id: 'NUOC-'+(t+1), title: `Tiền Nước sinh hoạt (${soNuoc} khối)`, amount: tienNuoc, status: 0 });
+    currentUser.invoices.unshift({ id: 'WIFI-'+(t+2), title: "Tiền Internet (Wifi)", amount: 120000, status: 0 });
+
+    saveDatabase();
+    showToast(`Đã chốt hóa đơn phí sinh hoạt thành công!`, 'success');
+    refreshStudentData();
+  }
+
+  function submitIncident() {
+    const title = document.getElementById('incident-title').value;
+    const desc = document.getElementById('incident-desc').value;
+    if(!title) return showToast('Nhập tên sự cố!', 'danger');
+    currentUser.requests.unshift({ id: 'SC-'+Date.now(), type: 'Báo cáo Sự cố', content: `${title} - ${desc}`, status: 0 });
+    saveDatabase(); showToast('Đã gửi sự cố tới BQL', 'success'); refreshStudentData();
+  }
+
+  function openPaymentModal(index) {
+    activeInvoiceIndex = index;
+
+    let amountToPay = 0;
+    if (index === 'all') {
+      amountToPay = currentUser.invoices.reduce((sum, inv) => inv.status === 0 ? sum + inv.amount : sum, 0);
+      if(amountToPay === 0) return showToast('Bạn không có khoản nợ nào!', 'info');
+    } else {
+      amountToPay = currentUser.invoices[index].amount;
+    }
+
+    document.getElementById('payment-step-1').style.display = 'block';
+    document.getElementById('payment-step-2').style.display = 'none';
+    document.getElementById('payment-footer').style.display = 'flex';
+    document.getElementById('btn-close-modal').disabled = false;
+
+    const btnSimulate = document.getElementById('btn-simulate-pay');
+    btnSimulate.disabled = false;
+    btnSimulate.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i> Xác nhận đã chuyển khoản';
+    document.getElementById('waiting-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Đang chờ nhận thanh toán...';
+
+    document.getElementById('modal-invoice-amount').innerText = amountToPay.toLocaleString('vi-VN') + " đ";
+    modalPayment.show();
+  }
+
+  function simulateBankWebhook() {
+    const btnSimulate = document.getElementById('btn-simulate-pay');
+    btnSimulate.disabled = true;
+    btnSimulate.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-2"></i> Đang xử lý...';
+    document.getElementById('btn-close-modal').disabled = true;
+
+    setTimeout(() => {
+      document.getElementById('payment-step-1').style.display = 'none';
+      document.getElementById('payment-step-2').style.display = 'block';
+      document.getElementById('payment-footer').style.display = 'none';
+
+      if (activeInvoiceIndex === 'all') {
+        currentUser.invoices.forEach(inv => {
+          if(inv.status === 0) inv.status = 1;
+        });
+      } else {
+        currentUser.invoices[activeInvoiceIndex].status = 1;
+      }
+
+      saveDatabase(); refreshStudentData();
+      showToast('Thanh toán thành công!', 'success');
+
+      setTimeout(() => {
+        modalPayment.hide();
+        document.getElementById('btn-close-modal').disabled = false;
+      }, 2000);
+    }, 1500);
+  }
+
+  function refreshAdminData() {
+    renderNotifications('admin-notif-list', true);
+    const studentsOnly = usersDatabase.filter(u => u.role === 'student');
+
+    document.getElementById('admin-student-list').innerHTML = studentsOnly.map(u => {
+      let debtCount = u.invoices.filter(i => i.status === 0).length;
+      return `<tr>
+                <td class="fw-bold text-primary">${u.name}</td>
+                <td>${u.studentId || "Trống"} <br> <small class="text-muted">${u.email}</small></td>
+                <td>${u.room ? `<span class="badge bg-info text-dark">${u.room}</span>` : 'Chưa có'}</td>
+                <td>${debtCount > 0 ? `<span class="text-danger fw-bold">Nợ ${debtCount} HĐ</span>` : '<span class="text-success">Hoàn thành</span>'}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewStudentDetails('${u.email}')"><i class="fa-solid fa-eye"></i> Xem</button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    let allReq = [];
+    usersDatabase.forEach((u, uIdx) => {
+      if(u.role === 'student') {
+        u.requests.forEach((r, rIdx) => {
+          if(r.status === 0) {
+            allReq.push(`<tr>
+                            <td><b>${u.name}</b><br><small>${u.room||''}</small></td>
+                            <td><span class="badge bg-secondary">${r.type}</span></td>
+                            <td class="text-danger fw-bold">${r.content}</td>
+                            <td><button class="btn btn-sm btn-success" onclick="resolveRequest(${uIdx}, ${rIdx})">Đánh dấu Xong</button></td>
+                        </tr>`);
+          }
+        });
+      }
+    });
+    document.getElementById('admin-request-list').innerHTML = allReq.length > 0 ? allReq.join('') : '<tr><td colspan="4" class="text-center text-muted">Không có yêu cầu nào cần xử lý.</td></tr>';
+
+    let totalRev = 0, totalDebt = 0;
+    studentsOnly.forEach(u => {
+      u.invoices.forEach(inv => {
+        if(inv.status === 1) totalRev += inv.amount;
+        else totalDebt += inv.amount;
+      });
+    });
+    document.getElementById('stat-total-sv').innerText = studentsOnly.length;
+    document.getElementById('stat-revenue').innerText = totalRev.toLocaleString('vi-VN') + " đ";
+    document.getElementById('stat-debt').innerText = totalDebt.toLocaleString('vi-VN') + " đ";
+  }
+
+  function viewStudentDetails(email) {
+    const u = usersDatabase.find(user => user.email === email);
+    if(!u) return;
+
+    let unpaidInvoices = u.invoices.filter(i => i.status === 0);
+    let debtCount = unpaidInvoices.length;
+    let totalDebt = unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+
+    let invoiceHtml = '';
+    if (debtCount > 0) {
+      invoiceHtml = `
+                <div class="col-12 mt-3">
+                    <h6 class="fw-bold text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Danh sách hóa đơn chưa thanh toán</h6>
+                    <table class="table table-sm table-bordered mt-2">
+                        <thead class="table-light"><tr><th>Mã HĐ</th><th>Nội dung</th><th>Số tiền</th></tr></thead>
+                        <tbody>
+                            ${unpaidInvoices.map(inv => `<tr><td>${inv.id}</td><td>${inv.title}</td><td class="text-danger fw-bold">${inv.amount.toLocaleString('vi-VN')} đ</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+    }
+
+    const content = `
+            <div class="row gx-3 gy-3">
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Họ và Tên:</strong> <span class="text-primary fw-bold">${u.name}</span></div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Mã SV:</strong> ${u.studentId || "Chưa cập nhật"}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Email:</strong> ${u.email}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Số ĐT:</strong> ${u.phone || "Chưa cập nhật"}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Ngày sinh:</strong> ${u.dob || "Chưa cập nhật"}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Giới tính:</strong> ${u.gender || "Chưa cập nhật"}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Phòng KTX:</strong> ${u.room ? `<span class="badge bg-info text-dark">${u.room}</span>` : "Chưa có"}</div></div>
+                <div class="col-md-6"><div class="p-2 border rounded bg-light"><strong>Trạng thái Nợ:</strong> ${debtCount > 0 ? `<span class="text-danger fw-bold">Nợ ${debtCount} HĐ (${totalDebt.toLocaleString('vi-VN')} đ)</span>` : '<span class="text-success fw-bold">Hoàn thành (0 đ)</span>'}</div></div>
+                ${invoiceHtml}
+            </div>
+        `;
+
+    document.getElementById('student-details-content').innerHTML = content;
+
+    if (!studentModalInstance) {
+      studentModalInstance = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
+    }
+    studentModalInstance.show();
+  }
+
+  function resolveRequest(uIdx, rIdx) {
+    usersDatabase[uIdx].requests[rIdx].status = 1;
+    saveDatabase(); showToast('Đã xử lý yêu cầu!', 'success'); refreshAdminData();
+  }
+
+  function sendNotification() {
+    const title = document.getElementById('notif-title').value;
+    const content = document.getElementById('notif-content').value;
+    if(!title || !content) return showToast('Vui lòng điền tiêu đề và nội dung!', 'danger');
+
+    const typeArr = document.getElementById('notif-type').value.split('|');
+    notificationsDB.unshift({ title: title, content: content, type: typeArr[0], icon: typeArr[1], time: new Date().toLocaleString() });
+
+    saveNotifications(); showToast('Đã phát thông báo thành công!', 'success');
+    document.getElementById('notif-title').value = '';
+    document.getElementById('notif-content').value = '';
+    refreshAdminData();
+  }
+
+  function deleteNotification(idx) {
+    if(confirm("Bạn có chắc muốn xóa thông báo này?")) {
+      notificationsDB.splice(idx, 1);
+      saveNotifications(); refreshAdminData(); showToast('Đã xóa thông báo!', 'success');
+    }
+  }
+</script>
+</body>
+</html>
